@@ -58,13 +58,31 @@ app.post('/api/chat', async (req, res) => {
 
     const response = message.content[0].type === 'text' ? message.content[0].text : '';
 
+    // Rosie's vocal warm-ups — phonetic sounds ElevenLabs sings in her own voice
+    const vocalizations = [
+      'Rrrrrr-BING! ',
+      'Mmmmm-DING! ',
+      'Bzzzt-beep! ',
+      'Rrrr-rrr-BING bong! ',
+      'Whirrrrr... BING! ',
+      'Mmmm-rrrr-BING! ',
+      'Bweeee-DING! ',
+      'Zrrrrp-BING! ',
+      'Rrrr-DING-ding! ',
+      'Mmm-bzzzt-BING! ',
+    ];
+    const useVocalization = Math.random() < 0.45;
+    const vocal = useVocalization
+      ? vocalizations[Math.floor(Math.random() * vocalizations.length)]
+      : '';
+
     // Generate speech with ElevenLabs (optional, will fall back to browser TTS)
     let audioData = null;
     try {
       const ttsResponse = await axios.post(
         `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
         {
-          text: response,
+          text: vocal + response,
           model_id: 'eleven_multilingual_v2',
           voice_settings: {
             stability: 0.38,
