@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AvatarDisplay from './AvatarDisplay';
 import VoiceInput from './VoiceInput';
+import { startThinkingHum, stopThinkingHum } from './rosieSounds.js';
 import './App.css';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
     if (!text.trim()) return;
     setMessages(prev => [...prev, { role: 'user', text }]);
     setIsProcessing(true);
+    startThinkingHum();
     try {
       const res = await fetch('http://localhost:3001/api/chat', {
         method: 'POST',
@@ -29,6 +31,7 @@ export default function App() {
         body: JSON.stringify({ text })
       });
       const data = await res.json();
+      stopThinkingHum();
       setMessages(prev => [...prev, { role: 'rosie', text: data.response }]);
       setIsSpeaking(true);
       sceneRef.current?.startSpeaking();
@@ -55,6 +58,7 @@ export default function App() {
       setIsSpeaking(false);
       sceneRef.current?.stopSpeaking();
     } catch (error) {
+      stopThinkingHum();
       console.error('Chat error:', error);
       setMessages(prev => [...prev, { role: 'rosie', text: 'Sorry, something went wrong. Try again?' }]);
     } finally {

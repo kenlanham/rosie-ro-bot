@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { playRandomIdleSound, playStartupChime } from './rosieSounds.js';
 
 const AvatarDisplay = forwardRef(({ isSpeaking, isListening }, ref) => {
   const canvasRef = useRef(null);
@@ -12,9 +13,11 @@ const AvatarDisplay = forwardRef(({ isSpeaking, isListening }, ref) => {
     antennaGlow: 0.2,
     pupilX: 0, pupilY: 0, pupilTargetX: 0, pupilTargetY: 0, pupilTimer: 0,
   });
+  const idleSoundTimer = useRef(null);
+  const hasInteracted = useRef(false);
 
   useImperativeHandle(ref, () => ({
-    startSpeaking: () => {},
+    startSpeaking: () => { hasInteracted.current = true; },
     stopSpeaking: () => {},
   }));
 
@@ -81,7 +84,24 @@ const AvatarDisplay = forwardRef(({ isSpeaking, isListening }, ref) => {
     };
 
     animRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animRef.current);
+
+    // Startup chime on first mount
+    setTimeout(() => playStartupChime(), 600);
+
+    // Random idle sounds every 8-18 seconds
+    const scheduleIdleSound = () => {
+      const delay = 8000 + Math.random() * 10000;
+      idleSoundTimer.current = setTimeout(() => {
+        if (!isSpeaking) playRandomIdleSound();
+        scheduleIdleSound();
+      }, delay);
+    };
+    scheduleIdleSound();
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      clearTimeout(idleSoundTimer.current);
+    };
   }, [isSpeaking, isListening]);
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />;
