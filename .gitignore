@@ -1,0 +1,8 @@
+node_modules/
+venv/
+*.env
+elevenlabs-api.env.txt
+uvicorn.log
+__pycache__/
+*.pyc
+.openclaw/

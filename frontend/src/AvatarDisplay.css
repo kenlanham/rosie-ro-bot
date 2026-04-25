@@ -1,0 +1,92 @@
+.avatar-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px 20px;
+}
+
+.avatar-wrapper {
+  width: 320px;
+  height: 450px;
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.avatar-wrapper.listening {
+  animation: gentle-sway 2s ease-in-out infinite;
+}
+
+@keyframes gentle-sway {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.01);
+  }
+}
+
+.rosie-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* Mouth talking animation */
+.rosie-svg.talking ellipse[cx="150"][cy="200"] {
+  animation: mouth-talk 0.3s ease-in-out infinite;
+  transform-origin: 150px 200px;
+}
+
+@keyframes mouth-talk {
+  0%, 100% {
+    ry: 12;
+  }
+  50% {
+    ry: 18;
+  }
+}
+
+/* Eye blinking */
+.eyes-group {
+  animation: blink-animation 4s ease-in-out infinite;
+  transform-origin: 150px 140px;
+}
+
+@keyframes blink-animation {
+  0%, 10%, 20%, 100% {
+    transform: scaleY(1);
+  }
+  5%, 15% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Listening state - eyes focus */
+.avatar-wrapper.listening .eyes-group {
+  animation: eyes-focus-animation 0.8s ease-in-out infinite;
+}
+
+@keyframes eyes-focus-animation {
+  0%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.15);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .avatar-wrapper {
+    width: 280px;
+    height: 390px;
+  }
+}
+
+@media (max-width: 480px) {
+  .avatar-wrapper {
+    width: 240px;
+    height: 340px;
+  }
+}

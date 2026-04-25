@@ -1,0 +1,217 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0a0a0a;
+  position: relative;
+}
+
+.avatar-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.controls-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.transcript-area {
+  width: 100%;
+  max-width: 700px;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+
+.empty-state {
+  font-size: 14px;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+  padding: 10px 0;
+}
+
+.msg-label {
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.user-text {
+  font-size: 16px;
+  color: #e0e7ff;
+  font-weight: 500;
+}
+
+.rosie-text {
+  font-size: 18px;
+  color: #fbbf24;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.loading {
+  font-size: 14px;
+  color: #a78bfa;
+  font-style: italic;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.text-input-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 700px;
+}
+
+.text-input {
+  flex: 1;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px;
+  color: #fff;
+  font-size: 16px;
+  padding: 12px 20px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.text-input::placeholder { color: rgba(255,255,255,0.4); }
+.text-input:focus { border-color: rgba(255,255,255,0.5); }
+.text-input:disabled { opacity: 0.5; }
+
+.send-button {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.send-button:hover:not(:disabled) { opacity: 0.85; }
+.send-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.voice-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.talk-button {
+  background: linear-gradient(135deg, #ff6b35 0%, #f97316 100%);
+  color: white;
+  border: none;
+  padding: 16px 40px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 250px;
+  justify-content: center;
+}
+
+.talk-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+}
+
+.talk-button.recording {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  animation: pulse-button 0.6s infinite;
+}
+
+.talk-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes pulse-button {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(239, 68, 68, 0.6);
+  }
+}
+
+.mic-icon {
+  font-size: 20px;
+}
+
+.interim-text {
+  font-size: 14px;
+  color: #c7d2fe;
+  font-style: italic;
+  max-width: 500px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .controls-panel {
+    padding: 20px;
+  }
+
+  .talk-button {
+    padding: 14px 30px;
+    font-size: 16px;
+  }
+
+  .transcript-area {
+    min-height: 50px;
+  }
+
+  .user-text,
+  .rosie-text {
+    font-size: 14px;
+  }
+}
