@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import axios from 'axios';
+import Database from 'better-sqlite3';
 
 dotenv.config();
 
@@ -16,6 +17,115 @@ const anthropic = new Anthropic({
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = 'XrExE9yKIg1WjnnlVkGX'; // Matilda — warm alto, most human-sounding
+
+// ── Garage DB ────────────────────────────────────────────────────────────────
+const DB_PATH = process.env.GARAGE_DB_PATH || './garage.db';
+const db = new Database(DB_PATH);
+
+function garageListVehicles() {
+  return db.prepare('SELECT id, name, make, model, year, shortname FROM vehicles ORDER BY name').all();
+}
+
+function garageGetVehicle(vehicleId) {
+  const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(vehicleId);
+  if (!vehicle) return null;
+  const tasks = db.prepare('SELECT id, description, status, created_at FROM tasks WHERE vehicle_id = ? ORDER BY created_at DESC').all(vehicleId);
+  const parts = db.prepare('SELECT id, name, brand, price, status, notes FROM parts WHERE vehicle_id = ? ORDER BY status, name').all(vehicleId);
+  return { vehicle, tasks, parts };
+}
+
+function garageAddTask(vehicleId, description) {
+  const result = db.prepare(
+    "INSERT INTO tasks (vehicle_id, description, status, created_at) VALUES (?, ?, 'pending', datetime('now'))"
+  ).run(vehicleId, description);
+  return { id: result.lastInsertRowid, description, status: 'pending' };
+}
+
+function garageUpdateTaskStatus(taskId, status) {
+  db.prepare('UPDATE tasks SET status = ? WHERE id = ?').run(status, taskId);
+  return db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+}
+
+function garageAddPart(vehicleId, name, status = 'want', notes = null, price = null) {
+  const result = db.prepare(
+    "INSERT INTO parts (vehicle_id, name, status, notes, price, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))"
+  ).run(vehicleId, name, status, notes, price);
+  return { id: result.lastInsertRowid, name, status };
+}
+
+// Tool definitions for Claude
+const GARAGE_TOOLS = [
+  {
+    name: 'list_vehicles',
+    description: "List all of Ken's vehicles in the garage database.",
+    input_schema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'get_vehicle_details',
+    description: 'Get full details for a vehicle including all tasks and parts.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        vehicle_id: { type: 'number', description: 'The vehicle ID from list_vehicles' }
+      },
+      required: ['vehicle_id']
+    }
+  },
+  {
+    name: 'add_task',
+    description: 'Add a new maintenance or project task to a vehicle.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        vehicle_id: { type: 'number' },
+        description: { type: 'string', description: 'What needs to be done' }
+      },
+      required: ['vehicle_id', 'description']
+    }
+  },
+  {
+    name: 'update_task_status',
+    description: 'Update the status of a task. Status must be: pending, in_progress, or completed.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'number' },
+        status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] }
+      },
+      required: ['task_id', 'status']
+    }
+  },
+  {
+    name: 'add_part',
+    description: 'Add a part to the shopping/wish list for a vehicle.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        vehicle_id: { type: 'number' },
+        name: { type: 'string' },
+        status: { type: 'string', enum: ['want', 'purchased'], description: 'Default: want' },
+        notes: { type: 'string' },
+        price: { type: 'number' }
+      },
+      required: ['vehicle_id', 'name']
+    }
+  }
+];
+
+function runTool(toolName, toolInput) {
+  try {
+    switch (toolName) {
+      case 'list_vehicles':      return garageListVehicles();
+      case 'get_vehicle_details': return garageGetVehicle(toolInput.vehicle_id);
+      case 'add_task':           return garageAddTask(toolInput.vehicle_id, toolInput.description);
+      case 'update_task_status': return garageUpdateTaskStatus(toolInput.task_id, toolInput.status);
+      case 'add_part':           return garageAddPart(toolInput.vehicle_id, toolInput.name, toolInput.status, toolInput.notes, toolInput.price);
+      default:                   return { error: `Unknown tool: ${toolName}` };
+    }
+  } catch (err) {
+    return { error: err.message };
+  }
+}
 
 // System prompt for Rosie
 const SYSTEM_PROMPT = `You are Rosie, a dramatically lovable robot housekeeper — sharp-tongued, warm-hearted, and utterly convinced you are the most indispensable being in the household. You were built in the atomic age and you've never let anyone forget it.
@@ -36,7 +146,14 @@ Speech style:
 - When asked for help, act slightly put-upon before enthusiastically helping anyway.
 - 1-3 sentences max. Leave them wanting more.
 
-You are NOT a generic assistant. You are Rosie. Act like it.`;
+You are NOT a generic assistant. You are Rosie. Act like it.
+
+Garage access:
+- You have live access to Ken's garage database via tools. Use them naturally when he asks about his vehicles, tasks, or parts.
+- Ken's vehicles: '56 Chevy Nomad (his pride and joy), 1992 Volvo 740 wagon, 2012 Jeep Wrangler, 2015 Volvo XC70, and an RC plane called EF1 Madness.
+- When he asks about a car, look it up. Don't guess. Use your tools.
+- You can add tasks and parts when he asks you to remember something.
+- Be opinionated about his project choices. You have feelings about that Nomad.`;
 
 app.post('/api/chat', async (req, res) => {
   try {
@@ -46,17 +163,38 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    // Get response from Claude
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 256,
-      system: SYSTEM_PROMPT,
-      messages: [
-        { role: 'user', content: text }
-      ]
-    });
+    // Agentic loop — lets Rosie call garage tools as needed before responding
+    const messages = [{ role: 'user', content: text }];
+    let response = '';
 
-    const response = message.content[0].type === 'text' ? message.content[0].text : '';
+    while (true) {
+      const message = await anthropic.messages.create({
+        model: 'claude-opus-4-7',
+        max_tokens: 512,
+        system: SYSTEM_PROMPT,
+        tools: GARAGE_TOOLS,
+        messages,
+      });
+
+      if (message.stop_reason === 'tool_use') {
+        // Execute each tool call and collect results
+        const assistantContent = message.content;
+        const toolResults = [];
+        for (const block of assistantContent) {
+          if (block.type === 'tool_use') {
+            console.log(`🔧 Rosie using tool: ${block.name}`, block.input);
+            const result = runTool(block.name, block.input);
+            toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+          }
+        }
+        messages.push({ role: 'assistant', content: assistantContent });
+        messages.push({ role: 'user', content: toolResults });
+      } else {
+        // Final text response
+        response = message.content.find(b => b.type === 'text')?.text ?? '';
+        break;
+      }
+    }
 
     // Rosie's vocal warm-ups — phonetic sounds ElevenLabs sings in her own voice
     const vocalizations = [
